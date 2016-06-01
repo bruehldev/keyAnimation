@@ -31,8 +31,9 @@
 <body>
 <!-- load the d3.js library -->
 <script src="http://d3js.org/d3.v3.min.js"></script>
+<!--<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js" type="text/javascript"></script>-->
 
-<!-- Create Tree -->
+<!-- Tree data -->
 <script>
 
     // Data structure
@@ -53,52 +54,10 @@
         {"name": "Key 3.7", "parent": "Master Key 2.4"},
         {"name": "Key 3.8", "parent": "Master Key 2.4"}
     ];
+</script>
 
-    var treeDataFlat1 = [
-        {"name": "Master Key", "parent": "null"},
-        {"name": "Master Key 1.1", "parent": "Master Key"},
-        {"name": "Master Key 1.2", "parent": "Master Key"},
-        {"name": "Master Key 2.1", "parent": "Master Key 1.1"},
-        {"name": "Master Key 2.2", "parent": "Master Key 1.1"},
-        {"name": "Master Key 2.3", "parent": "Master Key 1.2"},
-        {"name": "Master Key 2.4", "parent": "Master Key 1.2"},
-        {"name": "Key 3.1", "parent": "Master Key 2.1"},
-        {"name": "Key 3.2", "parent": "Master Key 2.1"},
-        {"name": "Key 3.3", "parent": "Master Key 2.2"},
-        {"name": "Key 3.4", "parent": "Master Key 2.2"},
-        {"name": "Key 3.5", "parent": "Master Key 2.3"},
-        {"name": "Key 3.6", "parent": "Master Key 2.3"},
-        {"name": "Key 3.7", "parent": "Master Key 2.4"},
-        {"name": "Key 3.8", "parent": "Master Key 2.4"}
-    ];
-
-    // Create teporary data map
-    var dataMap = treeDataFlat.reduce(function (map, node) {
-        map[node.name] = node;
-        return map;
-    }, {});
-    console.log("DataMap:");
-    console.log(dataMap);
-
-    // Traverse treeDataFlat and generate hierarchical order
-    var treeDataMap = [];
-    treeDataFlat.forEach(function (node) {
-        // add to parent
-        var parent = dataMap[node.parent];
-        if (parent) {
-            // create child array if it doesn't exist
-            (parent.children || (parent.children = []))
-            // add node to child array
-                    .push(node);
-        } else {
-            // parent is null or missing
-            treeDataMap.push(node);
-        }
-    });
-    console.log("treeDataMap:");
-    console.log(treeDataMap);
-    //for (var i = 0, len = treeDataMap.length; i < len; i++) {    }
-
+<!-- Generate Tree and container -->
+<script>
     // ************** Generate the tree diagram	 *****************
     var margin = {top: 40, right: 120, bottom: 20, left: 120},
             width = 1400 - margin.right - margin.left,
@@ -122,15 +81,17 @@
             .append("g")
             .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-    root = treeDataMap[0];
+    root = mapTree(treeDataFlat)[0];
     root.x0 = height / 2;
     root.y0 = 0;
-
     update(root);
 
     d3.select(self.frameElement).style("height", "500px");
 
-
+    /** Update the tree by the root note
+     *
+     * @param source - root note of your source tree
+     */
     function update(source) {
 
         // Compute the new tree layout.
@@ -165,7 +126,12 @@
         // Use an icon as node
         nodeEnter.append("image")
                 .attr("xlink:href", function (d) {
-                    return d.icon = "key_blue.png";
+                    if (d.level == "red") {
+                        return d.icon = "key_red.png";
+                    }
+                    else {
+                        return d.icon = "key_blue.png";
+                    }
                 })
                 .attr("x", "-24px")
                 .attr("y", "-24px")
@@ -195,7 +161,12 @@
         // Changes the icon of the node after collapse
         nodeUpdate.select("image")
                 .attr("xlink:href", function (d) {
-                    return d._children ? d.icon = "key_green.png" : d.icon = "key_blue.png";
+                    if (d.level == "red") {
+                        return d.icon = "key_red.png";
+                    }
+                    else {
+                        return d._children ? d.icon = "key_green.png" : d.icon = "key_blue.png";
+                    }
                 })
                 .attr("x", "-24px")
                 .attr("y", "-24px")
@@ -225,6 +196,9 @@
         var link = svg.selectAll("path.link")
                 .data(links, function (d) {
                     return d.target.id;
+                })
+                .style("stroke", function (d) {
+                    return d.target.level;
                 });
 
         // Enter any new links at the parent's previous position.
@@ -256,7 +230,10 @@
         });
     }
 
-    // Toggle children on click.
+    /** Toggle children on click.
+     *
+     * @param d - toggled parent node
+     */
     function click(d) {
         if (d.children) {
             d._children = d.children;
@@ -267,36 +244,24 @@
         }
         update(d);
     }
-
-
-</script>
-
-<!-- Animation to delete key 3.8 -->
-<script>
-    function updateKeys() {
-
-        // Deletes all nodes and links
-        //svg.selectAll('.node').remove();
-        //svg.selectAll('.link').remove();
-
-
-        treeDataFlatNew = treeDataFlat;
-
-        treeDataFlatNew.push({"name": "Master Key 1.2'", "parent": "Master Key"});
-        treeDataFlatNew.push({"name": "Master Key 2.4'", "parent": "Master Key 1.2'"});
-        treeDataFlatNew.push({"name": "Key 3.8'", "parent": "Master Key 2.4'"});
-
+    /** Mapping a flat tree structure on a tree structure
+     *
+     * @param flatTreeArray - Array with flat tree structure
+     * @returns {Array} - Array with hierarchical tree structure
+     */
+    function mapTree(flatTreeArray) {
         // Create temporary data map
-        var dataMapNew = treeDataFlatNew.reduce(function (map, node) {
+        var dataMap = flatTreeArray.reduce(function (map, node) {
+            //map[node.name] = jQuery.extend(true, {}, node);
             map[node.name] = node;
             return map;
         }, {});
 
         // Traverse treeDataFlat and generate hierarchical order
-        var treeDataMapNew = [];
-        treeDataFlatNew.forEach(function (node) {
+        var treeDataMap = [];
+        flatTreeArray.forEach(function (node) {
             // add to parent
-            var parent = dataMapNew[node.parent];
+            var parent = dataMap[node.parent];
             if (parent) {
                 // create child array if it doesn't exist
                 (parent.children || (parent.children = []))
@@ -304,76 +269,93 @@
                         .push(node);
             } else {
                 // parent is null or missing
-                treeDataMapNew.push(node);
+                treeDataMap.push(node);
             }
         });
 
-        console.log(treeDataMapNew);
+        return treeDataMap;
+    }
+</script>
 
-        root = treeDataMapNew[0];
+<!-- Functions to interact with the tree structure -->
+<script>
+    /** Adding 3 static nodes to the given data structure
+     *
+     * @param treeDataFlatNew - Array with flat tree structure
+     */
+    function updateKeys(treeDataFlatNew) {
+
+        // Static nodes
+        treeDataFlatNew.push({"name": "Master Key 1.2'", "parent": "Master Key", "level": "red"});
+        treeDataFlatNew.push({"name": "Master Key 2.4'", "parent": "Master Key 1.2'", "level": "red"});
+        treeDataFlatNew.push({"name": "Key 3.8'", "parent": "Master Key 2.4'", "level": "red"});
+
+        root = mapTree(treeDataFlatNew)[0];
         root.x0 = height / 2;
         root.y0 = 0;
 
         update(root);
+        // Second update to color the links and nodes
+        update(root);
 
     }
-    ;
 
-    function deleteKey() {
-        console.log("Before All:");
-        console.log(treeDataFlat);
+    /** Delete the node of given tree structure inside the flat and hierarchical tree structure
+     *
+     * @param - tree structure
+     */
+    function deleteKey(treeDataFlatDel) {
 
-        treeDataFlatDel = treeDataFlat1;
-
-        console.log("Before Delete:");
-        console.log(treeDataFlatDel);
-
+        // Deleting the node inside the flat tree structure
         var searchTerm = "Key 3.7";
         for (var i = 0, len = treeDataFlatDel.length; i < len; i++) {
             if (treeDataFlatDel[i].name == searchTerm) {
-                console.log("Delete ID:");
-                console.log(treeDataFlatDel[i].id);
-                //delete treeDataFlatDel[i];
-                treeDataFlatDel.splice(i,1);
+                treeDataFlatDel.splice(i, 1);
                 break;
             }
         }
 
-        console.log("After Delete:");
-        console.log(treeDataFlatDel);
+        // Deleting the node inside the hierarchical tree structure
+        traverseAndDelete(treeDataFlatDel[0], "Key 3.7");
 
-       // Create temporary data map
-        var dataMapNewDel = treeDataFlatDel.reduce(function (map, node) {
-            map[node.name] = node;
-            return map;
-        }, {});
-        console.log("dataMapNewDel:");
-        console.log(dataMapNewDel);
-
-        // Traverse treeDataFlat and generate hierarchical order
-        var treeDataMapNewDel = [];
-        treeDataFlatDel.forEach(function (node) {
-            // add to parent
-            var parent = dataMapNewDel[node.parent];
-            if (parent) {
-                // create child array if it doesn't exist
-                (parent.children || (parent.children = []))
-                // add node to child array
-                        .push(node);
-            } else {
-                // parent is null or missing
-                treeDataMapNewDel.push(node);
-            }
-        });
-
-        console.log("After Delete and Mapping");
-        console.log(treeDataMapNewDel);
-
-        root = treeDataMapNewDel[0];
+        var root = treeDataFlatDel[0];
         root.x0 = height / 2;
         root.y0 = 0;
-
         update(root);
+    }
+
+    /** Function to search a node depending on his name.
+     *
+     * @param obj - Tree Structure where you searching
+     * @param searchTerm - Name of the node
+     */
+    function traverseAndDelete(obj, searchTerm) {
+        var search = searchTerm;
+        for (i in obj.children) {
+            if (obj.children.isEmpty) {
+                return;
+            }
+            if (obj.children[i].name == search) {
+                console.log(obj.children[i].name + "geloescht");
+                obj.children.splice(i, 1);
+                break;
+                return;
+            }
+            traverseAndDelete(obj.children[i], search);
+        }
+    }
+
+    /** Converts an object to an array
+     *
+     * @param _Object
+     * @returns {Array}
+     */
+    function toArray(_Object) {
+        var _Array = new Array();
+        for (var name in _Object) {
+            _Array[name] = _Object[name];
+        }
+        return _Array;
     }
 
 </script>
@@ -382,14 +364,14 @@
         <input name="updateButton"
                type="button"
                value="Add new key"
-               onclick="updateKeys()"
+               onclick="updateKeys(treeDataFlat)"
         />
     </div>
     <div id="delete">
         <input name="deleteButton"
                type="button"
                value="Delete Key"
-               onclick="deleteKey()"
+               onclick="deleteKey(treeDataFlat)"
         />
     </div>
 </div>
